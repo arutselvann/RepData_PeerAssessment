@@ -1,0 +1,101 @@
+---
+title: "AN_markdown_ReProDat_pr1"
+author: "AN"
+date: "5/27/2020"
+output: html_document
+---
+# Download file from web
+### urlarch = "https://www.coursera.org/learn/reproducible-research/peer/gYyPt/course-project-1.zip"
+### A.Loading and preprocessing the data
+### unzip data and read 
+### csvFile = unz(temp, "activity.csv")
+```{r} 
+activityFile <- "~/Desktop/Coursera_2020/Reproducible_research/week2project/activity.csv"
+steps_data <- read.csv(activityFile, header = TRUE) 
+head(steps_data)
+```
+# 1. Calculate total number of steps taken each day
+## 1.1. Calculate the total number of steps taken per day
+```{r} 
+library(magrittr)
+library(dplyr)
+data_by_date <- steps_data %>% select(date, steps) %>% group_by(date) %>% summarize(tsteps= sum(steps)) %>%na.omit()
+data_by_date
+```
+## 1.2. Calculate and report the mean and median of the total number of steps taken per day
+```{r}
+mean(data_by_date$tsteps)
+median(data_by_date$tsteps)
+```
+## 1.3. Plot a histogram of the total number of steps taken each day 
+```{r}
+hist(data_by_date$tsteps, xlab = "Total daily Steps",main="Histogram of Total Steps by day", 
+     breaks = 20)
+```
+
+# 2.The average daily activity plot for every 5 mins interval and contains the maximum number of steps
+
+```{r}
+library(ggplot2)
+data_by_interval <- steps_data%>% select(interval, steps) %>% na.omit() %>% group_by(interval) %>% summarize(tsteps= mean(steps)) 
+ggplot(data_by_interval, aes(x=interval, y=tsteps))+ geom_line()
+data_by_interval[which(data_by_interval$tsteps== max(data_by_interval$tsteps)),]
+```
+# 3.Imputing missing values
+## Total number of missing values in the dataset
+```{r}
+missing_Vals <- sum(is.na(data))
+missing_Vals
+```
+
+## 3.1.Strategy for filling in all of the missing values in the dataset
+```{r}
+library(magrittr)
+library(dplyr)
+replace_with_mean <- function(x) replace(x, is.na(x), mean(x, na.rm = TRUE))
+meandata <- steps_data%>% group_by(interval) %>% mutate(steps= replace_with_mean(steps))
+head(meandata)
+```
+## 3.2.A new dataset that is equal to the original dataset but with the missing data filled 
+```{r}
+FullSum_DataBy_Day <- aggregate(meandata$steps, by=list(meandata$date), sum)
+names(FullSum_DataBy_Day)[1] ="date"
+names(FullSum_DataBy_Day)[2] ="totalsteps"
+head(FullSum_DataBy_Day,15)
+```
+## 3.3.A histogram of the total number of steps taken per day. 
+```{r}
+hist(FullSum_DataBy_Day$totalsteps, xlab = "Steps",
+     ylab = "Frequency", main = "Total Daily Steps", breaks = 20)
+```
+## 3.4.Compare the mean and median of Old and New data
+```{r}
+oldmean <- mean(data_by_date$tsteps, na.rm = TRUE)
+newmean <- mean(FullSum_DataBy_Day$totalsteps)
+```
+## 3.5.Old mean and New mean
+```{r}
+oldmean
+newmean
+```
+## 3.6.Old median and New median
+```{r}
+oldmedian <- median(data_by_date$tsteps, na.rm = TRUE)
+newmedian <- median(FullSum_DataBy_Day$totalsteps)
+```
+```{r}
+oldmedian
+newmedian
+```
+# 4. Are there differences in activity patterns between weekdays and weekends?
+```{r}
+meandata$date <- as.Date(meandata$date)
+meandata$weekday <- weekdays(meandata$date)
+meandata$weekend <- ifelse(meandata$weekday=="Saturday" | meandata$weekday=="Sunday", "Weekend", "Weekday" )
+library(ggplot2)
+meandataweekendweekday <- aggregate(meandata$steps , by= list(meandata$weekend, meandata$interval), na.omit(mean))
+names(meandataweekendweekday) <- c("weekend", "interval", "steps")
+ggplot(meandataweekendweekday, aes(x=interval, y=steps, color=weekend)) + geom_line()+
+  facet_grid(weekend ~.) + xlab("Interval") + ylab("Mean of Steps") +
+  ggtitle("Comparison of Average Number of Steps in Each Interval")
+```
